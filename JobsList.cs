@@ -7,38 +7,33 @@ using System.Text;
 
 public class JobsList : MonoBehaviour
 {
-    [SerializeField] private Button fetchJobsButton; // Можно оставить для ручного обновления, если нужно
+    //[SerializeField] private Button fetchJobsButton;
 
     private const string LIST_URL = "https://api.immersal.com/list";
-    private const string TOKEN_FILE_NAME = "immersal_token.txt";
     private const string JOBS_FILE_NAME = "jobslist.json";
-
-    private string tokenFilePath; // путь к токену
-    private string jobsFilePath;  // путь к файлу со списком карт
+    private string jobsFilePath;
 
     private void Awake()
     {
-        tokenFilePath = Path.Combine(Application.persistentDataPath, TOKEN_FILE_NAME);
         jobsFilePath = Path.Combine(Application.persistentDataPath, JOBS_FILE_NAME);
 
-        if (fetchJobsButton != null)
-            fetchJobsButton.onClick.AddListener(OnFetchJobsClicked);
+        //if (fetchJobsButton != null)
+        //    fetchJobsButton.onClick.AddListener(OnFetchJobsClicked);
     }
 
     private void Start()
     {
-        // Запускаем автообновление
         StartCoroutine(AutoRefreshCoroutine());
     }
 
     private void OnFetchJobsClicked()
     {
-        if (!File.Exists(tokenFilePath))
+        string token = TokenManager.GetToken();
+        if (string.IsNullOrEmpty(token))
         {
-            Debug.LogError("Token file not found! Please login first.");
+            Debug.LogError("Token not found! Please login first.");
             return;
         }
-        string token = File.ReadAllText(tokenFilePath);
         StartCoroutine(FetchJobs(token));
     }
 
@@ -46,18 +41,17 @@ public class JobsList : MonoBehaviour
     {
         while (true)
         {
-            if (File.Exists(tokenFilePath))
+            string token = TokenManager.GetToken();
+            if (!string.IsNullOrEmpty(token))
             {
-                string token = File.ReadAllText(tokenFilePath);
                 yield return StartCoroutine(FetchJobs(token));
             }
-            yield return new WaitForSeconds(10f); // обновление каждые 10 секунд (можно настроить по необходимости)
+            yield return new WaitForSeconds(10f);
         }
     }
 
     private IEnumerator FetchJobs(string token)
     {
-        // Формируем тело запроса
         ListJobsRequest requestData = new ListJobsRequest { token = token };
         string jsonPayload = JsonUtility.ToJson(requestData);
         byte[] rawBody = Encoding.UTF8.GetBytes(jsonPayload);
@@ -82,7 +76,6 @@ public class JobsList : MonoBehaviour
                 string jsonResponse = request.downloadHandler.text;
                 Debug.Log("List Jobs response: " + jsonResponse);
 
-                // Парсим полученные данные
                 JobsListData newData = JsonUtility.FromJson<JobsListData>(jsonResponse);
                 if (newData == null || newData.error != "none")
                 {
@@ -100,12 +93,10 @@ public class JobsList : MonoBehaviour
                     string oldJson = File.ReadAllText(jobsFilePath);
                     JobsListData oldData = JsonUtility.FromJson<JobsListData>(oldJson);
 
-                    // Простая проверка: если число карт изменилось
                     if (newData.count != oldData.count || newData.jobs.Length != oldData.jobs.Length)
                     {
                         shouldSave = true;
                     }
-                    // Можно дальше добавить более детальное сравнение (например, по ID карт).
                 }
 
                 if (shouldSave)
@@ -113,7 +104,6 @@ public class JobsList : MonoBehaviour
                     File.WriteAllText(jobsFilePath, jsonResponse);
                     Debug.Log("Jobs list updated in file: " + jobsFilePath);
 
-                    // Обновляем UI карточек, если такая логика реализована
                     MapCardGenerator generator = FindObjectOfType<MapCardGenerator>();
                     if (generator != null)
                     {
@@ -121,6 +111,15 @@ public class JobsList : MonoBehaviour
                     }
                 }
             }
+        }
+    }
+    //Удаление файла со списком карт после выхода из аккаунта
+    public void ClearJobsList()
+    {
+        if (File.Exists(jobsFilePath))
+        {
+            File.Delete(jobsFilePath);
+            Debug.Log("Jobs list file deleted: " + jobsFilePath);
         }
     }
 
