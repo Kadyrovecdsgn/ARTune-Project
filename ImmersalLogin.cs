@@ -4,7 +4,7 @@ using UnityEngine.Networking;
 using System.Collections;
 using System.Text;
 using TMPro;
-using System.IO;
+using Immersal;
 
 public class ImmersalLogin : MonoBehaviour
 {
@@ -12,28 +12,24 @@ public class ImmersalLogin : MonoBehaviour
     [SerializeField] private TMP_InputField mailField;
     [SerializeField] private TMP_InputField passField;
     [SerializeField] private Button loginButton;
+    [SerializeField] private Button logoutButton;
     [SerializeField] private TMP_Text statusMessage;
-
 
     [Header("API Configuration")]
     private const string API_URL = "https://api.immersal.com/rest/v1/login";
 
-    private const string TOKEN_FILE_NAME = "immersal_token.txt";
-    private string tokenFilePath;
-
     private void Awake()
     {
-        // Скрываем текстовое поле статуса, если оно есть
         if (statusMessage != null)
         {
             statusMessage.gameObject.SetActive(false);
         }
 
-        // Привязываем метод к кнопке
         loginButton.onClick.AddListener(OnLoginClicked);
-
-        // Путь к файлу с токеном во внутреннем хранилище приложения
-        tokenFilePath = Path.Combine(Application.persistentDataPath, TOKEN_FILE_NAME);
+        if (logoutButton != null)
+        {
+            logoutButton.onClick.AddListener(OnLogoutClicked);
+        }
     }
 
     private void OnLoginClicked()
@@ -52,14 +48,12 @@ public class ImmersalLogin : MonoBehaviour
 
     private IEnumerator SendLoginRequest(string email, string password)
     {
-        // Формируем тело запроса
         SDKLoginRequest loginRequest = new SDKLoginRequest
         {
             login = email,
             password = password
         };
 
-        // Сериализуем объект в JSON
         string jsonBody = JsonUtility.ToJson(loginRequest);
         byte[] rawBody = Encoding.UTF8.GetBytes(jsonBody);
 
@@ -76,7 +70,6 @@ public class ImmersalLogin : MonoBehaviour
 
             loginButton.interactable = true;
 
-            // Проверка на сетевые или протокольные ошибки
             if (request.result == UnityWebRequest.Result.ConnectionError ||
                 request.result == UnityWebRequest.Result.ProtocolError)
             {
@@ -86,21 +79,18 @@ public class ImmersalLogin : MonoBehaviour
             }
             else
             {
-                // Парсим ответ
                 string jsonResponse = request.downloadHandler.text;
                 SDKLoginResult response = JsonUtility.FromJson<SDKLoginResult>(jsonResponse);
 
-                // Проверяем, что ошибок нет и токен получен
                 if (response != null && response.error == "none")
                 {
-                    // Сохраняем токен в файл
-                    File.WriteAllText(tokenFilePath, response.token);
-                    Debug.Log("Token successfully written to: " + tokenFilePath);
-
-                    // Выводим сообщение об успешном входе
+                    TokenManager.SetToken(response.token);
+                    if (ImmersalSDK.Instance != null)
+                    {
+                        ImmersalSDK.Instance.developerToken = response.token;
+                        ImmersalSDK.Instance.ValidateUser();
+                    }
                     ShowStatusMessage("Login successful!", false);
-
-                    // Запускаем корутину, которая через 3 секунды закроет окно
                     StartCoroutine(CloseWindowAfterDelay(3f));
                 }
                 else
@@ -112,9 +102,18 @@ public class ImmersalLogin : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Показываем сообщение пользователю
-    /// </summary>
+    private void OnLogoutClicked()
+    {
+        if (ImmersalSDK.Instance != null)
+        {
+            ImmersalSDK.Instance.developerToken = null;
+            ImmersalSDK.Instance.RestartSdk();
+        }
+        TokenManager.SetToken(null);
+        ShowStatusMessage("Logged out successfully!", false);
+        gameObject.SetActive(true);
+    }
+
     private void ShowStatusMessage(string message, bool isError)
     {
         if (statusMessage != null)
@@ -125,14 +124,9 @@ public class ImmersalLogin : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Закрываем окно логина через заданное время
-    /// </summary>
     private IEnumerator CloseWindowAfterDelay(float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
-
-        // Скрываем окно логина (или уничтожаем объект, по необходимости)
         gameObject.SetActive(false);
     }
 
