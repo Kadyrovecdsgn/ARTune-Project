@@ -21,14 +21,9 @@ public class PauseResumeButton : MonoBehaviour
 
     private void Start()
     {
-        // Initialize button image based on default state
         UpdateButtonImage();
-        // Keep UI in sync if session is paused/resumed externally
-        //session.OnPause.AddListener(() => SetPaused(true));
-        //session.OnResume.AddListener(() => SetPaused(false));
     }
 
-    // Link this method to the Button OnClick event in the Inspector
     public void ToggleSession()
     {
         if (isPaused)
