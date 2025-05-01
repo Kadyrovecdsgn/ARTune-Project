@@ -8,6 +8,7 @@ public class ProductManager : MonoBehaviour
 {
     [SerializeField] private GameObject productPrefab; // Префаб карточки продукта
     [SerializeField] private Transform scrollContent;  // Контейнер для карточек в ScrollView
+    [SerializeField] private GameObject detailedDescriptionPrefab; // Префаб окна детального описания
 
     // Класс данных о продукте
     [System.Serializable]
@@ -17,7 +18,15 @@ public class ProductManager : MonoBehaviour
         public string productName;    // Название продукта
         public string productType;    // Тип продукта
         public string productCost;    // Стоимость продукта
-        public UnityEvent onClickAction; // Действие, выполняемое при нажатии на кнопку
+
+        [TextArea(3, 10)] // Минимальная высота 3 строки, максимальная 10 строк
+        public string productDescription; // Описание продукта
+
+        [TextArea(3, 10)] // Минимальная высота 3 строки, максимальная 10 строк
+        public string productCharacteristics; // Характеристики продукта
+
+        public UnityEvent onAddToSceneAction; // Действие для кнопки "Добавить на сцену"
+        public UnityEvent onBuyAction;        // Действие для кнопки "Купить"
     }
 
     [SerializeField] private List<ProductData> products = new List<ProductData>(); // Список продуктов
@@ -75,17 +84,25 @@ public class ProductManager : MonoBehaviour
             productCostText.text = data.productCost + " $";
         }
 
-        // Настройка кнопки
+        // Настройка кнопки для открытия детального описания
         Button button = product.GetComponent<Button>();
         if (button == null)
         {
             button = product.AddComponent<Button>(); // Добавляем кнопку, если её нет
         }
 
-        // Привязка действия к кнопке
-        if (data.onClickAction != null)
+        // Привязка действия к кнопке: открытие окна детального описания
+        button.onClick.AddListener(() => OpenDetailedDescription(data));
+    }
+
+    // Метод для открытия окна детального описания
+    private void OpenDetailedDescription(ProductData data)
+    {
+        GameObject detailedWindow = Instantiate(detailedDescriptionPrefab);
+        DetailedDescriptionController controller = detailedWindow.GetComponent<DetailedDescriptionController>();
+        if (controller != null)
         {
-            button.onClick.AddListener(data.onClickAction.Invoke);
+            controller.Setup(data);
         }
     }
 }
