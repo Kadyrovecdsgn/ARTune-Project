@@ -7,11 +7,9 @@ using Immersal;
 public class MapCardGenerator : MonoBehaviour
 {
     [Header("UI References")]
-    [Tooltip("Сюда (Panel под Scroll) будут добавляться сгенерированные карточки")]
     [SerializeField] private Transform mapListPanel;
 
     [Header("Card Settings")]
-    [Tooltip("Спрайт, который будет назначен в Image у mapCard")]
     [SerializeField] private Sprite mapCardBg;
 
     private const string JOBS_FILE_NAME = "jobslist.json";
@@ -24,11 +22,9 @@ public class MapCardGenerator : MonoBehaviour
 
     private void Start()
     {
-        // Передача токена в ImmersalSDK при старте
-        string tokenFilePath = Path.Combine(Application.persistentDataPath, "immersal_token.txt");
-        if (File.Exists(tokenFilePath))
+        string token = TokenManager.GetToken();
+        if (!string.IsNullOrEmpty(token))
         {
-            string token = File.ReadAllText(tokenFilePath).Trim();
             ImmersalSDK sdk = ImmersalSDK.Instance;
             if (sdk != null)
             {
@@ -43,30 +39,21 @@ public class MapCardGenerator : MonoBehaviour
         }
         else
         {
-            Debug.LogError($"Файл токена не найден: {tokenFilePath}");
+            Debug.LogError("Токен не найден. Пожалуйста, выполните вход.");
         }
 
         GenerateMapCards();
     }
 
-    /// <summary>
-    /// Очищает текущие карточки и генерирует их заново.
-    /// Можно вызывать этот метод из других скриптов для обновления UI.
-    /// </summary>
     public void RefreshMapCards()
     {
-        // Удаляем все существующие карточки
         foreach (Transform child in mapListPanel)
         {
             Destroy(child.gameObject);
         }
-        // Генерируем карточки заново
         GenerateMapCards();
     }
 
-    /// <summary>
-    /// Чтение файла jobslist.json и создание карточек.
-    /// </summary>
     private void GenerateMapCards()
     {
         if (!File.Exists(jobsFilePath))
@@ -89,12 +76,8 @@ public class MapCardGenerator : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Создание одной карточки (mapCard) с заполнением данными.
-    /// </summary>
     private void CreateMapCard(JobData job)
     {
-        // Создаем mapCard с RectTransform, настроенными якорями и фиксированными размерами
         GameObject mapCardGO = new GameObject("mapCard", typeof(RectTransform));
         RectTransform rt = mapCardGO.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -103,7 +86,6 @@ public class MapCardGenerator : MonoBehaviour
 
         mapCardGO.transform.SetParent(mapListPanel, false);
 
-        // Добавляем компоненты
         Image mapCardImage = mapCardGO.AddComponent<Image>();
         Button mapCardButton = mapCardGO.AddComponent<Button>();
         HorizontalLayoutGroup hlg = mapCardGO.AddComponent<HorizontalLayoutGroup>();
@@ -124,7 +106,6 @@ public class MapCardGenerator : MonoBehaviour
         hlg.childForceExpandWidth = true;
         hlg.childForceExpandHeight = true;
 
-        // Добавляем обработчик нажатия кнопки, который передаст id карты в ImmersalSDK
         mapCardButton.onClick.AddListener(() => {
             MapLoader loader = FindObjectOfType<MapLoader>();
             if (loader != null)
@@ -137,9 +118,6 @@ public class MapCardGenerator : MonoBehaviour
             }
         });
 
-        // Создаем блок с информацией (mapInfoLeft и mapInfoRight)
-
-        // Создаем mapInfoLeft
         GameObject mapInfoLeftGO = new GameObject("mapInfoLeft", typeof(RectTransform));
         mapInfoLeftGO.transform.SetParent(mapCardGO.transform, false);
         VerticalLayoutGroup vlLeft = mapInfoLeftGO.AddComponent<VerticalLayoutGroup>();
@@ -151,7 +129,6 @@ public class MapCardGenerator : MonoBehaviour
         vlLeft.childForceExpandWidth = true;
         vlLeft.childForceExpandHeight = true;
 
-        // mapName
         GameObject mapNameGO = new GameObject("mapName", typeof(TextMeshProUGUI));
         mapNameGO.transform.SetParent(mapInfoLeftGO.transform, false);
         TextMeshProUGUI mapNameText = mapNameGO.GetComponent<TextMeshProUGUI>();
@@ -160,7 +137,6 @@ public class MapCardGenerator : MonoBehaviour
         mapNameText.fontStyle = FontStyles.Bold;
         mapNameText.alignment = TextAlignmentOptions.TopLeft;
 
-        // mapId
         GameObject mapIdGO = new GameObject("mapId", typeof(TextMeshProUGUI));
         mapIdGO.transform.SetParent(mapInfoLeftGO.transform, false);
         TextMeshProUGUI mapIdText = mapIdGO.GetComponent<TextMeshProUGUI>();
@@ -168,7 +144,6 @@ public class MapCardGenerator : MonoBehaviour
         mapIdText.fontSize = 36;
         mapIdText.alignment = TextAlignmentOptions.TopLeft;
 
-        // Создаем mapInfoRight
         GameObject mapInfoRightGO = new GameObject("mapInfoRight", typeof(RectTransform));
         mapInfoRightGO.transform.SetParent(mapCardGO.transform, false);
         VerticalLayoutGroup vlRight = mapInfoRightGO.AddComponent<VerticalLayoutGroup>();
@@ -180,7 +155,6 @@ public class MapCardGenerator : MonoBehaviour
         vlRight.childForceExpandWidth = true;
         vlRight.childForceExpandHeight = true;
 
-        // imagesCount
         GameObject imagesCountGO = new GameObject("imagesCount", typeof(TextMeshProUGUI));
         imagesCountGO.transform.SetParent(mapInfoRightGO.transform, false);
         TextMeshProUGUI imagesCountText = imagesCountGO.GetComponent<TextMeshProUGUI>();
@@ -188,7 +162,6 @@ public class MapCardGenerator : MonoBehaviour
         imagesCountText.fontSize = 28;
         imagesCountText.alignment = TextAlignmentOptions.TopRight;
 
-        // dateOfCreation
         GameObject dateOfCreationGO = new GameObject("dateOfCreation", typeof(TextMeshProUGUI));
         dateOfCreationGO.transform.SetParent(mapInfoRightGO.transform, false);
         TextMeshProUGUI dateOfCreationText = dateOfCreationGO.GetComponent<TextMeshProUGUI>();
@@ -196,7 +169,6 @@ public class MapCardGenerator : MonoBehaviour
         dateOfCreationText.fontSize = 28;
         dateOfCreationText.alignment = TextAlignmentOptions.TopRight;
     }
-
 
     [System.Serializable]
     public class JobsListData
