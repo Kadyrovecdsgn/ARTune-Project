@@ -88,19 +88,24 @@ namespace Immersal.Samples.ContentPlacement
             }
         }
 
+        // Новый метод для удаления активного объекта
+        public void DeleteActiveContent()
+        {
+            if (MovableContent.CurrentActive != null)
+            {
+                MovableContent.CurrentActive.RemoveContent();
+            }
+        }
+
+        // Обновлённый метод для удаления всех объектов с сообщением
         public void DeleteAllContent()
         {
-            List<MovableContent> copy = new List<MovableContent>();
-
-            foreach (MovableContent content in contentList)
-            {
-                copy.Add(content);
-            }
-
+            List<MovableContent> copy = new List<MovableContent>(contentList);
             foreach (MovableContent content in copy)
             {
                 content.RemoveContent();
             }
+            Debug.Log("All content has been deleted.");
         }
 
         public void SaveContents()
@@ -128,7 +133,7 @@ namespace Immersal.Samples.ContentPlacement
 
                 foreach (Vector3 pos in loadFile.positions)
                 {
-                    GameObject go = Instantiate(m_ContentPrefabs[0], m_ARSpace.transform); // Загрузка первого префаба как пример
+                    GameObject go = Instantiate(m_ContentPrefabs[0], m_ARSpace.transform); 
                     go.transform.localPosition = pos;
                 }
 
