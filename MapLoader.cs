@@ -2,7 +2,6 @@ using System.Collections;
 using UnityEngine;
 using Immersal.AR;
 using Immersal.REST;
-using System.Threading.Tasks;
 using Immersal;
 using UnityEngine.Networking;
 
@@ -26,24 +25,28 @@ public class MapLoader : MonoBehaviour
             yield break;
         }
 
-        // Сброс текущей карты
         arMap.Uninitialize();
         yield return new WaitForEndOfFrame();
 
-        // Настройка параметров карты
         arMap.SetIdAndName(mapId, mapName, true);
         arMap.OnDeviceBehaviour = OnDeviceBehaviour.Download;
         arMap.DownloadVisualizationAtRuntime = true;
         arMap.LocalizationMethod = LocalizationMethod.Server;
 
-        // Загрузка метаданных
         SDKMapMetadataGetResult metadata = new SDKMapMetadataGetResult();
         bool metadataReceived = false;
+
+        string token = TokenManager.GetToken();
+        if (string.IsNullOrEmpty(token))
+        {
+            Debug.LogError("Token not found! Cannot load map.");
+            yield break;
+        }
 
         JobMapMetadataGetAsync metadataJob = new JobMapMetadataGetAsync
         {
             id = mapId,
-            token = ImmersalSDK.Instance.developerToken
+            token = token
         };
 
         metadataJob.OnResult += (result) => {
@@ -53,7 +56,6 @@ public class MapLoader : MonoBehaviour
 
         metadataJob.RunJobAsync();
 
-        // Ожидание метаданных
         float timer = 0f;
         while (!metadataReceived && timer < metadataTimeout)
         {
@@ -67,11 +69,9 @@ public class MapLoader : MonoBehaviour
             yield break;
         }
 
-        // Применение метаданных
         arMap.SetMetadata(metadata, true);
         arMap.ApplyAlignment();
 
-        // Загрузка данных карты
         arMap.Configure();
 
         timer = 0f;
@@ -87,29 +87,23 @@ public class MapLoader : MonoBehaviour
             yield break;
         }
 
-        // Создание визуализации (создается дочерний объект ARMapVisualization)
         CreateMapVisualization(arMap);
         Debug.Log($"Created visualization for map {mapId}");
 
-        // 7. Запуск регистрации карты (если требуется)
         yield return StartCoroutine(RegisterMaps());
 
-        // 8. Скачивание sparse point cloud (.ply) и загрузка в визуализацию
         yield return StartCoroutine(DownloadSparsePointCloud(arMap));
 
-        // 9. Запуск локализации
         ImmersalSDK.Instance.LocalizeOnce();
     }
 
     private void CreateMapVisualization(ARMap arMap)
     {
-        // Если старая визуализация существует, удаляем её
         if (arMap.Visualization != null)
         {
             arMap.RemoveVisualization();
         }
 
-        // Создаем новый GameObject для визуализации
         GameObject visObject = new GameObject($"{arMap.mapId}-Visualization");
         visObject.transform.SetParent(arMap.transform, false);
 
@@ -121,16 +115,13 @@ public class MapLoader : MonoBehaviour
 
     private IEnumerator DownloadSparsePointCloud(ARMap arMap)
     {
-        // Считываем токен
-        string tokenFilePath = System.IO.Path.Combine(Application.persistentDataPath, "immersal_token.txt");
-        if (!System.IO.File.Exists(tokenFilePath))
+        string token = TokenManager.GetToken();
+        if (string.IsNullOrEmpty(token))
         {
-            Debug.LogError("Token file not found! Cannot download sparse point cloud.");
+            Debug.LogError("Token not found! Cannot download sparse point cloud.");
             yield break;
         }
-        string token = System.IO.File.ReadAllText(tokenFilePath).Trim();
 
-        // Формируем URL для скачивания sparse point cloud (PLY-файл)
         string url = $"https://api.immersal.com/sparse?token={token}&id={arMap.mapId}&ply=1";
         UnityWebRequest request = UnityWebRequest.Get(url);
         yield return request.SendWebRequest();
@@ -145,7 +136,6 @@ public class MapLoader : MonoBehaviour
         byte[] plyData = request.downloadHandler.data;
         Debug.Log($"Sparse point cloud downloaded. Size: {plyData.Length} bytes");
 
-        // Передаем байты в ARMapVisualization через метод LoadPly
         if (arMap.Visualization != null)
         {
             arMap.Visualization.LoadPly(plyData, $"{arMap.mapId}-{arMap.mapName}-sparse");
@@ -159,11 +149,9 @@ public class MapLoader : MonoBehaviour
 
     private IEnumerator RegisterMaps()
     {
-        // Перезапуск SDK
         ImmersalSDK.Instance.RestartSdk();
         yield return new WaitForSeconds(1f);
 
-        // Регистрация карт через MapManager
         ARMap[] maps = FindObjectsOfType<ARMap>();
         foreach (ARMap map in maps)
         {
