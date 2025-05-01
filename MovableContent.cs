@@ -1,114 +1,215 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
 
 namespace Immersal.Samples.ContentPlacement
 {
+    public enum MovementMode
+    {
+        Raycast,
+        Traditional
+    }
+
     public class MovableContent : MonoBehaviour
     {
         [SerializeField]
-        private float m_ClickHoldTime = 0.1f; // Время удержания для перемещения
-        [SerializeField]
-        private float m_RotationSpeed = 10f; // Скорость вращения в градусах в секунду
-        [SerializeField]
-        private float m_DoubleClickTime = 0.3f; // Максимальный интервал между кликами для двойного нажатия
-        [SerializeField]
-        private float m_RotationHoldTime = 0.5f; // Время удержания после двойного нажатия для вращения
+        private float m_ClickHoldTime = 0.1f;
 
-        private float m_timeHold = 0f; // Время удержания кнопки
-        private bool m_EditingContent = false; // Флаг для перемещения
-        private bool m_RotatingContent = false; // Флаг для вращения
-        private Transform m_CameraTransform; // Трансформ камеры
-        private float m_MovePlaneDistance; // Расстояние до плоскости перемещения
+        private float m_timeHold = 0f;
+        private bool m_EditingContent = false;
+        private Transform m_CameraTransform;
+        private float m_MovePlaneDistance;
 
-        private float m_LastClickTime = 0f; // Время последнего клика
-        private bool m_DoubleClickDetected = false; // Флаг обнаружения двойного нажатия
+        private ARRaycastManager arRaycastManager;
+        private List<ARRaycastHit> arHits = new List<ARRaycastHit>();
+
+        private MovementModeManager modeManager;
+
+        public static MovableContent CurrentActive { get; private set; }
+
+        // Переменные для двухпальцевого поворота
+        private bool isRotating = false;
+        private int fingerId1, fingerId2;
+        private Vector2 prevTouch1, prevTouch2;
+
+        // Переменные для перетаскивания без скачка
+        private Vector3 initialObjectPosition;
+        private Vector3 initialRaycastPosition;
+        private Vector3 initialProjectionPosition;
 
         private void Start()
         {
             m_CameraTransform = Camera.main.transform;
             StoreContent();
+
+            arRaycastManager = FindObjectOfType<ARRaycastManager>();
+            if (arRaycastManager == null)
+            {
+                Debug.LogWarning("ARRaycastManager not found - Raycast mode disabled");
+            }
+
+            modeManager = FindObjectOfType<MovementModeManager>();
+            if (modeManager == null)
+            {
+                Debug.LogWarning("MovementModeManager not found on scene!");
+            }
         }
 
         private void Update()
         {
-            // Перемещение объекта
-            if (m_EditingContent)
+            // Двухпальцевый поворот только для активной модели
+            if (Input.touchCount == 2 && CurrentActive == this)
             {
-                Vector3 projection = Camera.main.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, m_MovePlaneDistance));
-                transform.position = projection;
-            }
+                Touch touch0 = Input.GetTouch(0);
+                Touch touch1 = Input.GetTouch(1);
 
-            // Вращение объекта
-            if (m_RotatingContent)
+                if (!isRotating && touch0.phase == TouchPhase.Began && touch1.phase == TouchPhase.Began)
+                {
+                    isRotating = true;
+                    fingerId1 = touch0.fingerId;
+                    fingerId2 = touch1.fingerId;
+                    prevTouch1 = touch0.position;
+                    prevTouch2 = touch1.position;
+                }
+                else if (isRotating)
+                {
+                    Vector2 currentTouch1Pos = Vector2.zero;
+                    Vector2 currentTouch2Pos = Vector2.zero;
+                    bool found1 = false, found2 = false;
+                    for (int i = 0; i < Input.touchCount; i++)
+                    {
+                        Touch touch = Input.GetTouch(i);
+                        if (touch.fingerId == fingerId1 && touch.phase != TouchPhase.Canceled)
+                        {
+                            currentTouch1Pos = touch.position;
+                            found1 = true;
+                        }
+                        else if (touch.fingerId == fingerId2 && touch.phase != TouchPhase.Canceled)
+                        {
+                            currentTouch2Pos = touch.position;
+                            found2 = true;
+                        }
+                    }
+                    if (found1 && found2)
+                    {
+                        Vector2 prevVector = prevTouch2 - prevTouch1;
+                        Vector2 currentVector = currentTouch2Pos - currentTouch1Pos;
+                        float prevAngle = Mathf.Atan2(prevVector.y, prevVector.x) * Mathf.Rad2Deg;
+                        float currentAngle = Mathf.Atan2(currentVector.y, currentVector.x) * Mathf.Rad2Deg;
+                        float deltaAngle = currentAngle - prevAngle;
+                        transform.Rotate(transform.up, deltaAngle);
+                        prevTouch1 = currentTouch1Pos;
+                        prevTouch2 = currentTouch2Pos;
+                    }
+                    else
+                    {
+                        isRotating = false;
+                    }
+                }
+            }
+            else
             {
-                transform.Rotate(Vector3.up, m_RotationSpeed * Time.deltaTime);
+                isRotating = false;
             }
         }
 
         private void OnMouseDown()
         {
-            // Проверка на двойное нажатие
-            float timeSinceLastClick = Time.time - m_LastClickTime;
-            if (timeSinceLastClick < m_DoubleClickTime)
-            {
-                m_DoubleClickDetected = true;
-            }
-            else
-            {
-                m_DoubleClickDetected = false;
-            }
-            m_LastClickTime = Time.time;
+            CurrentActive = this;
+            Debug.Log($"Active object set: {gameObject.name} (Tag: {gameObject.tag})");
         }
 
         private void OnMouseDrag()
         {
+            if (CurrentActive != this) return;
+            if (Input.touchCount != 1) return; // Перемещение только при одном касании
             m_timeHold += Time.deltaTime;
-
-            if (m_DoubleClickDetected)
+            if (m_timeHold >= m_ClickHoldTime && !m_EditingContent)
             {
-                // Активация вращения после двойного нажатия и удержания 0.5 секунды
-                if (m_timeHold >= m_RotationHoldTime && !m_RotatingContent)
+                initialObjectPosition = transform.position; // Записываем начальную позицию модели
+                if (modeManager != null)
                 {
-                    m_RotatingContent = true;
+                    if (modeManager.CurrentMode == MovementMode.Traditional)
+                    {
+                        m_MovePlaneDistance = Vector3.Dot(
+                            transform.position - m_CameraTransform.position,
+                            m_CameraTransform.forward
+                        ) / m_CameraTransform.forward.sqrMagnitude;
+                        // Записываем начальную точку касания на плоскости
+                        initialProjectionPosition = Camera.main.ScreenToWorldPoint(
+                            new Vector3(Input.mousePosition.x, Input.mousePosition.y, m_MovePlaneDistance)
+                        );
+                    }
+                    else if (modeManager.CurrentMode == MovementMode.Raycast && arRaycastManager != null)
+                    {
+                        if (arRaycastManager.Raycast(Input.mousePosition, arHits, TrackableType.Planes))
+                        {
+                            initialRaycastPosition = arHits[0].pose.position;
+                        }
+                    }
                 }
+                m_EditingContent = true;
             }
-            else
+            if (m_EditingContent)
             {
-                // Активация перемещения при обычном удержании 0.1 секунды
-                if (m_timeHold >= m_ClickHoldTime && !m_EditingContent)
+                if (modeManager != null && modeManager.CurrentMode == MovementMode.Raycast && arRaycastManager != null)
                 {
-                    m_MovePlaneDistance = Vector3.Dot(transform.position - m_CameraTransform.position, m_CameraTransform.forward) / m_CameraTransform.forward.sqrMagnitude;
-                    m_EditingContent = true;
+                    UpdatePositionWithRaycast();
+                }
+                else
+                {
+                    UpdatePositionTraditional();
                 }
             }
         }
 
         private void OnMouseUp()
         {
-            // Сброс всех состояний при отпускании кнопки
             StoreContent();
+            ResetState();
+        }
+
+        private void ResetState()
+        {
             m_timeHold = 0f;
             m_EditingContent = false;
-            m_RotatingContent = false;
-            m_DoubleClickDetected = false;
         }
 
         private void StoreContent()
         {
-            if (!ContentStorageManager.Instance.contentList.Contains(this))
+            if (!MultipleContentStorageManager.Instance.contentList.Contains(this))
             {
-                ContentStorageManager.Instance.contentList.Add(this);
+                MultipleContentStorageManager.Instance.contentList.Add(this);
             }
-            ContentStorageManager.Instance.SaveContents();
+            MultipleContentStorageManager.Instance.SaveContents();
         }
 
         public void RemoveContent()
         {
-            if (ContentStorageManager.Instance.contentList.Contains(this))
+            if (MultipleContentStorageManager.Instance.contentList.Contains(this))
             {
-                ContentStorageManager.Instance.contentList.Remove(this);
+                MultipleContentStorageManager.Instance.contentList.Remove(this);
             }
-            ContentStorageManager.Instance.SaveContents();
+            MultipleContentStorageManager.Instance.SaveContents();
             Destroy(gameObject);
+        }
+
+        private void UpdatePositionWithRaycast()
+        {
+            if (arRaycastManager.Raycast(Input.mousePosition, arHits, TrackableType.Planes))
+            {
+                Vector3 currentRaycastPosition = arHits[0].pose.position;
+                transform.position = initialObjectPosition + (currentRaycastPosition - initialRaycastPosition);
+            }
+        }
+
+        private void UpdatePositionTraditional()
+        {
+            Vector3 currentProjection = Camera.main.ScreenToWorldPoint(
+                new Vector3(Input.mousePosition.x, Input.mousePosition.y, m_MovePlaneDistance)
+            );
+            transform.position = initialObjectPosition + (currentProjection - initialProjectionPosition);
         }
     }
 }
