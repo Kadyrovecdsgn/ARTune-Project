@@ -12,10 +12,7 @@ You can also use the app to:
 - Go to the **maker's store** and order the desired accessory or part.
 - Share the result of the example with friends via social networks.
 
-A detailed description of how to use the app is available within the app itself.
-
-Translated with DeepL.com (free version)
-
+A detailed description of **how to use** the app is available within the app itself.
 
 ## Functionality
 
@@ -34,3 +31,7 @@ Translated with DeepL.com (free version)
 - **Go to the manufacturers store**  
   Direct link to online stores of accessory suppliers for quick ordering.
 
+- **Share result in socials**
+  Share your result of virtual tuning to friends and other car enthusiasts via social networks.
+
+##Screenshots
