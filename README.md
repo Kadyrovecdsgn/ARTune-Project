@@ -6,7 +6,7 @@ With **ARTune** you can virtually try on car accessories on your own car. The ap
 1. Scan your car with **Immersal Mapper**.
 2. Save the scan result on the Immersal server.
 3. Log into your account via ARTune and choose available 3D scan of your car.
-4. Go to the catalog, select the fittableaccessories or car parts and try them on in real time.
+4. Go to the catalog, select the fittable accessories or car parts and try them on in real time.
 
 You can also use the app to:
 - Go to the **manufacturer's store** and order the desired accessory or part.
@@ -39,3 +39,4 @@ A detailed description of **how to use** the app is available within the app its
 ![demo2](https://github.com/Kadyrovecdsgn/ARTune-Project/blob/main/demo2.gif)
 ![demo3](https://github.com/Kadyrovecdsgn/ARTune-Project/blob/main/demo3.gif)
 ![demo4](https://github.com/Kadyrovecdsgn/ARTune-Project/blob/main/demo4.gif)
+![demo video](https://drive.google.com/file/d/1SVmZlWmkSHpC1ucH5ZE-6VXa6Qeeqywk/view?usp=sharing)
