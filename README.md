@@ -35,7 +35,7 @@ A detailed description of **how to use** the app is available within the app its
   Share your result of virtual tuning to friends and other car enthusiasts via social networks.
 
 ## Demonstration
-[!demo1](demo1.gif)
-[!demo2](demo2.gif)
-[!demo3](demo3.gif)
-[!demo4](demo4.gif)
+![demo1](demo1.gif)
+![demo2](demo2.gif)
+![demo3](demo3.gif)
+![demo4](demo4.gif)
