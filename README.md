@@ -31,7 +31,7 @@ A detailed description of **how to use** the app is available within the app its
 - **Go to the manufacturers store**  
   Direct link to online stores of accessory suppliers for quick ordering.
 
-- **Share result in socials*
+- **Share result in socials**
   Share your result of virtual tuning to friends and other car enthusiasts via social networks.
 
 ## Demonstration
